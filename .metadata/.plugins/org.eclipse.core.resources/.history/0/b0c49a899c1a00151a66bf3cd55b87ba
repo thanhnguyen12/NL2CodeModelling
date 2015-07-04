@@ -1,0 +1,66 @@
+/**
+ * 
+ */
+package databaseprocess;
+
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+
+import utils.FileUtils;
+import utils.Logger;
+import config.Config;
+
+/**
+ * @author anhnt
+ *
+ */
+public class CSVReader {
+	static int lineCount = 0; 
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		CSVReader reader = new CSVReader();
+		try {
+			ArrayList<String[]> allLines = reader.readAllLines(Config.mappingFilePath);
+			FileUtils.writeObjectFile(allLines, Config.mainDatabasePath + "mappingLines.dat");
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		Logger.log(System.lineSeparator() + "lineCount: " + lineCount);
+	}
+
+	
+	
+	public ArrayList<String[]> readAllLines(String filePath) throws IOException{
+		ArrayList<String[]> allLines = new ArrayList<String[]>();
+		InputStreamReader isr = new InputStreamReader(new FileInputStream(filePath));
+		BufferedReader br = new BufferedReader(isr);
+		
+		String curLine;
+	
+		while((curLine=br.readLine()) != null){
+			lineCount++;
+			if(lineCount%1000==0){
+				System.out.print(lineCount + "  ");
+				if(lineCount%100000==0){
+					System.out.println();
+				}
+				
+			}
+			String [] split = curLine.split(",");
+			allLines.add(split);
+		}
+		br.close();
+		return allLines;
+	}
+}

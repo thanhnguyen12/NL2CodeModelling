@@ -1,0 +1,53 @@
+/**
+ * 
+ */
+package databaseprocess;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+
+import utils.Logger;
+
+/**
+ * @author anhnt
+ *
+ */
+public class GlobalInfo implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1836560270488190737L;
+	
+	public HashMap<String, Integer> termIdxDict = new HashMap<String, Integer>();
+	
+	public HashMap<Integer, String> idxTermDict = new HashMap<Integer, String>();
+	
+	public HashMap<String, HashSet<String>> pqnNameMap =   new HashMap<String, HashSet<String>>();
+	public HashSet<String> nameSet =   new HashSet<String>();
+
+	
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+	public void buildIdxTermDict(){
+		for (String term:termIdxDict.keySet()){
+			Integer idx = termIdxDict.get(term);
+			idxTermDict.put(idx, term);
+		}
+	}
+	
+	public void doStatistics(){
+		Logger.log("termIdxDict size: " + termIdxDict.size());
+		Logger.log("idxTermDict size: " + idxTermDict.size());
+	}
+	
+	
+}

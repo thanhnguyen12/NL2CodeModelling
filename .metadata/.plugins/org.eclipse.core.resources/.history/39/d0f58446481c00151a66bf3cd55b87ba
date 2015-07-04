@@ -1,0 +1,370 @@
+package parser;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+
+import data.CodeElementData;
+
+/**
+ * @author thanhnguyen
+ */
+
+public class ASTNodeWrapper {
+	
+	public static void main(String[] argument) throws IOException {
+	}
+	
+	public static List<CodeElementData> parseASTree(ASTNode node) {
+		if(node == null)
+			return null;
+		
+		/** Print results */
+		System.out.format("%-40s%-30s%s", "Partially qualified name", "Name", "Kind");
+		System.out.println();
+		System.out.println("----------------------------------------------------------------------------------");
+		/** Return extracted code elements */
+		List<CodeElementData> codeElements = new ArrayList<CodeElementData>();
+		
+		node.accept(new ASTVisitor() {
+			/** Simple table to control variable declaration , which maps between a variable and its type*/
+			HashMap<String, SimpleType> map = new HashMap<String, SimpleType>();
+			
+			/** Skip unnecessary AST nodes, such as import, package, class... */
+			boolean visitingUnnecNodes = false;
+			
+			/** At this time, package and import declaration are not used for parsing. So we use endVisit and 
+			 * a flag to warn that some visits traversing SimpleType needs to be skipped */
+			public boolean visit(PackageDeclaration node) {
+				visitingUnnecNodes = true;
+				return true;
+			}
+			
+			public void endVisit(PackageDeclaration node) {
+				visitingUnnecNodes = false;
+			}
+			
+			/** For discarding import part */
+			public boolean visit(ImportDeclaration node) {
+				visitingUnnecNodes = true;
+				return true;
+			}
+			
+			public void endVisit(ImportDeclaration node) {
+				visitingUnnecNodes = false;
+			}
+			
+			/** Sometimes, when extending/implementing class/interface, we include SympleType in class declaration,
+			 * Visiting this node is to inform us about class/interface declaration.
+			 * However to use the same flag, need to consider FieldDeclaration and MethodDeclaration nodes
+			 * */
+			public boolean visit(TypeDeclaration node) {
+				visitingUnnecNodes = true;
+				return true;
+			}
+			
+			public boolean visit(FieldDeclaration node) {
+				if(visitingUnnecNodes)
+					visitingUnnecNodes = false;
+				return true;
+			}
+			
+			public boolean visit(MethodDeclaration node) {
+				if(visitingUnnecNodes)
+					visitingUnnecNodes = false;
+				return true;
+			}
+
+			
+			/** boolean variable is used to control variable declaration, since we just do know 
+			 * what type a variable holds when it is declared in TWO following visits */
+			@SuppressWarnings("unused")
+			boolean varDeclared = false;
+			SimpleType varType = null;
+			public boolean visit(VariableDeclarationStatement node) {
+				varDeclared = true;
+				return true;
+			}
+			
+			public boolean visit(VariableDeclarationFragment node) {
+				String varName = node.getName().toString();
+				map.put(varName, varType);
+				varDeclared = false;
+				varType = null;
+				return true;
+			}
+			
+			@SuppressWarnings("unchecked")
+			/** Get name of the variable declared in catch clause */
+			/** Variable declared in catch clauses is parsed into SingleVariableDeclaration node, but not
+			 * VariableDeclarationStatment node. CatchClause +> SingleVar.. => get name and type */
+			public boolean visit(TryStatement node) {
+				List<CatchClause> clauses = node.catchClauses();
+				for(CatchClause clause : clauses) {
+					String varName = clause.getException().getName().toString();
+					SimpleType temp;
+					temp = (SimpleType) clause.getException().getType();
+					map.put(varName, temp);
+				}
+				return true;
+			}
+			
+			/** Visit this node to get type of a newly declared variable*/
+			public boolean visit(SimpleType node) {
+				/** Avoid getting SympleType in class inheritance, interface implementation */
+				if(!visitingUnnecNodes) {
+					/** Get info */
+					varType = node;
+					CodeElementData codeElem = new CodeElementData(node.toString(), node.toString(), "type");
+					codeElements.add(codeElem);
+					System.out.format("%-40s%-30s%s", node.toString(), node.toString(), "type");
+					System.out.println();
+				}
+				return true;
+			}
+			
+			/** Visit this node to get qualified name ?? not sure what it is */
+			public boolean visit(QualifiedName node) {
+				/** Avoid getting qualified names in package and import parts */
+				if(!visitingUnnecNodes) {
+					String qualifier = "";
+					if(node != null && node.getQualifier() != null) {
+						String invokingInst = node.getQualifier().toString();
+						// only keep variable name in case of array type for searching in map, e.g var[i] => var
+						String temp = invokingInst.replaceAll("\\Q[\\E.*\\Q]\\E", "");
+						if(map.containsKey(temp) && map.get(temp) != null) {
+							qualifier = map.get(temp).toString();
+						}
+						else /* this else branch would make wrong expression in many cases, e.g expression has this format var.method().method */
+							qualifier = invokingInst;
+					}
+					CodeElementData codeElem = new CodeElementData(node.getQualifier().toString(), node.getName().toString(), "field");
+					codeElements.add(codeElem);
+					System.out.format("%-40s%-30s%s", qualifier, node.getName().toString(), "field");
+					System.out.println();
+				}
+				return true;
+			}
+			
+			/** We need get method calls, so this node is visited. Some tricks (simple table, discarding array access...
+			 * to get exact type of object invoking this method call. Some challenging cases are not completely solved */
+			public boolean visit(MethodInvocation node) {
+				String expression = "";
+				if(node != null && node.getExpression() != null) {
+					String invokingInst = node.getExpression().toString();
+					// only keep variable name in case of array type for searching in map, e.g var[i] => var
+					String temp = invokingInst.replaceAll("\\Q[\\E.*\\Q]\\E", "");
+					if(map.containsKey(temp) && map.get(temp) != null) {
+						expression = map.get(temp).toString();
+					}
+					else /* this else branch would make wrong expression in many cases, e.g expression has this format var.method().method */
+						expression = invokingInst;
+				}
+				CodeElementData codeElem = new CodeElementData(expression, node.toString(), "method");
+				codeElements.add(codeElem);
+				System.out.format("%-40s%-30s%s", expression, node.getName().toString(), "method");
+				System.out.println();
+				return true;
+			}
+			
+			public boolean visit(ClassInstanceCreation node) {
+				CodeElementData codeElem = new CodeElementData(node.toString(), node.getType().toString(), "method");
+				codeElements.add(codeElem);
+				System.out.format("%-40s%-30s%s", node.getType().toString(), node.getType().toString(), "method");
+				System.out.println();
+				return true;
+			}
+			
+			/** Visit to get type in case of casting statement */
+			public boolean visit(CastExpression node) {
+				int nodeType = node.getParent().getNodeType();
+				if(nodeType == ASTNode.ASSIGNMENT) {
+					Assignment assNode = (Assignment) node.getParent();
+					// Since this is assignment, not declaration, left-hand side is just variable  
+					String assignedVar = assNode.getLeftHandSide().toString();
+					if(!map.containsKey(assignedVar))
+						map.put(assignedVar, (SimpleType)node.getType());
+				}
+				return true;
+			}
+		});
+		
+		return codeElements;
+	}
+	
+	public static ASTNode createAST(String code) {
+		if(code == null) {
+    	System.err.println("No code snippet");
+			return null;
+		}
+			ASTParser parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_COMPILATION_UNIT);
+    	ASTNode node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Unit");
+    		return node;
+    	}
+    	
+    	parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+    	node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Body");
+    		return node;
+    	}
+
+    	parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_STATEMENTS);
+    	node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Statements");
+    		code = "public void MISSING(){\n" + code + "\n}";
+    		parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+        node = parser.createAST(null);
+    		return node;
+    	}
+    	else if (code.trim().endsWith(")")) {
+    		code = "public void MISSING(){\n" + code + ";\n}";
+    		parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+        node = parser.createAST(null);
+    		return node;
+    	}
+    	/** Method declared in the snippet */
+    	else if (code.trim().endsWith("}") && !code.contains("class")) {
+    		parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+        node = parser.createAST(null);
+    		return node;
+    	}
+    	System.err.println("Code snippet existed but fail to create AST");
+    	return null;
+	}
+	
+	/** Get statements in classes, methods, ... */
+	public static String getContent(ASTNode node) {
+		//System.out.println(node.getClass().getSimpleName() + "\t" + node);
+		switch (node.getNodeType()) {
+			case ASTNode.COMPILATION_UNIT:
+				//System.out.println("Unit");
+	    		CompilationUnit cu = (CompilationUnit)node;
+	    		TypeDeclaration type = (TypeDeclaration)(cu.types().get(0));
+	    		if(type.getName().toString().equals("MISSING")) {
+	    			if(type.getMethods() != null && type.getMethods().length > 0)
+	    			{
+		    			MethodDeclaration method = type.getMethods()[0];
+						if(method.getName().toString().equals("MISSING")) {
+							Block block = method.getBody();
+							String content = "";
+							for(int i = 0; i < block.statements().size(); i++)
+								content += block.statements().get(i).toString();
+							return content;
+						}
+						return method.toString();
+	    			}
+	    			else if(type.getFields() != null && type.getFields().length > 0) {
+	    				FieldDeclaration field = type.getFields()[0];
+	    				return field.toString();
+	    			}
+	    		}
+				return cu.toString();
+				
+			case ASTNode.TYPE_DECLARATION:
+				//System.out.println("Class");
+	    		type = (TypeDeclaration)node;
+				if(type.getName().toString().equals("MISSING")) {
+					//return type.bodyDeclarations().get(0).toString();
+					if(type.getMethods() != null && type.getMethods().length > 0) {
+						MethodDeclaration method = type.getMethods()[0];
+						if(method.getName().toString().equals("MISSING")) {
+							Block block = method.getBody();
+							String content = "";
+							for(int i = 0; i < block.statements().size(); i++)
+								content += block.statements().get(i).toString();
+							return content;
+						}
+						return method.toString();
+					}
+    			else if(type.getFields() != null && type.getFields().length > 0) {
+    				FieldDeclaration field = type.getFields()[0];
+    				return field.toString();
+    			}
+				}
+				return type.toString();
+				
+			case ASTNode.BLOCK:
+				//System.out.println("Block");
+	    		Block block = (Block)node;
+				String content = "";
+				for(int i = 0; i < block.statements().size(); i++)
+					content += block.statements().get(i).toString();
+				return content;
+				
+			case ASTNode.METHOD_DECLARATION:
+				//System.out.println("Block");
+				MethodDeclaration method = (MethodDeclaration)node;
+				block = method.getBody();
+				content = "";
+				for(int i = 0; i < block.statements().size(); i++)
+					content += block.statements().get(i).toString();
+				return content;
+				
+			default: return node.toString();
+		}
+	}
+	
+	private static boolean isParsed(ASTNode node) {
+		switch (node.getNodeType()) {
+			case ASTNode.COMPILATION_UNIT:
+				CompilationUnit cu = (CompilationUnit)node;
+				if(cu.types() != null && cu.types().size() > 0)
+					return true;
+				return false;
+				
+			case ASTNode.TYPE_DECLARATION:
+				TypeDeclaration type = (TypeDeclaration)node;
+				if(type.bodyDeclarations() != null && type.bodyDeclarations().size() > 0)
+					return true;
+				return false;
+				
+			case ASTNode.BLOCK:
+				Block block = (Block)node;
+				if(block.statements() != null && block.statements().size() > 0)
+					return true;
+				return false;
+				
+			default: return false;
+		}
+	}
+
+}

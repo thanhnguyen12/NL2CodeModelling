@@ -1,0 +1,28 @@
+package database;
+
+public class UserRowData {
+//	const column_spec users_columns[] =
+//		{{"Id",             CT_INT},
+//		 {"Reputation",     CT_INT},
+//		 {"CreationDate",   CT_DATE},
+//		 {"DisplayName",    CT_VCHR64}, // 32 would also be enough
+//		 {"EmailHash",      CT_TEXT},
+//		 {"LastAccessDate", CT_DATE},
+//		 {"WebsiteUrl",     CT_TEXT},
+//		 {"Location",       CT_TEXT},
+//		 {"AboutMe",        CT_TEXT},
+//		 {"Views",          CT_INT},
+//		 {"UpVotes",        CT_INT},
+//		 {"DownVotes",      CT_INT},
+// 		 {"ProfileImageUrl",        CT_TEXT},
+// 		 {"Age",            CT_INT},		 
+//		 {"AccountId",            CT_INT},		 
+//		 {0}};
+	
+	public long id;
+	public long reputation;
+	public long AcceptedAnswerId;
+	public long ParentId;
+	public String creationDate;
+
+}

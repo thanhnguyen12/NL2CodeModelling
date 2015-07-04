@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+<listEntry value="/StackOverflowMain/src/textprocess/TextProcessing.java"/>
+</listAttribute>
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+<listEntry value="1"/>
+</listAttribute>
+<stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="textprocess.TextProcessing"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="StackOverflowMain"/>
+<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Dgate.plugins.home=&quot;/remote/rs/tien/anhnt/GATE_Developer_8.1/plugins&quot; -Dgate.site.config=&quot;/remote/rs/tien/anhnt/GATE_Developer_8.1/gate.xml&quot;&#10;-Dgate.home=&quot;/remote/rs/tien/anhnt/GATE_Developer_8.1&quot;"/>
+</launchConfiguration>

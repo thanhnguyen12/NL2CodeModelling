@@ -1,0 +1,18 @@
+package config;
+
+public class Config {
+
+	public static final String mainPath =  "/remote/rs/tien/anhnt/TextToCode/";
+	public static final String mainDataPath = mainPath+ "data/";
+	
+	public static final String mainDatabasePath = mainPath + "database/";
+	
+	public static final String mappingFilePath = mainDataPath + "clt.csv";
+
+	public static final String modMappingFilePath = mainDataPath + "clt_mod.csv";
+	
+	public static final String threadInfoPath = mainDataPath + "ThreadInfo.dat";
+	
+	
+	
+}

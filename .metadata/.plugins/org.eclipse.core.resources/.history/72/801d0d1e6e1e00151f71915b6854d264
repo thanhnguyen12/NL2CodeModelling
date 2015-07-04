@@ -1,0 +1,99 @@
+/**
+ * 
+ */
+package database;
+
+/**
+ * @author anhnt
+ *
+ */
+public class PostRowData {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+	
+	
+	//	const column_spec posts_columns[] =
+	//		{{"Id",             CT_INT},
+	//		 {"PostTypeId",     CT_INT},
+	//		 {"AcceptedAnswerId", CT_INT},
+	//		 {"ParentId",       CT_INT},
+	//		 {"CreationDate",   CT_DATE},
+	//		 {"Score",          CT_INT},
+	//		 {"ViewCount",      CT_INT},
+	//		 {"Body",           CT_TEXT},
+	//		 {"OwnerUserId",    CT_INT},
+	//		 {"OwnerDisplayName",    CT_TEXT},
+	//		 {"LastEditorUserId", CT_INT},
+	//		 {"LastEditorDisplayName", CT_VCHR64},
+	//		 {"LastEditDate",   CT_DATE},
+	//		 {"LastActivityDate", CT_DATE},
+	//		 {"Title",          CT_TEXT},
+	//		 {"Tags",           CT_TEXT},
+	//		 {"AnswerCount",    CT_INT},
+	//		 {"CommentCount",   CT_INT},
+	//		 {"FavoriteCount",  CT_INT},
+	//		 {"ClosedDate",     CT_DATE},
+	//		 {"CommunityOwnedDate", CT_DATE},
+	//		 {0}};
+	//
+	//const table_spec posts_table = {"posts", posts_columns};
+	
+	long id;
+	long postTypeId;
+	long AcceptedAnswerId;
+	long ParentId;
+	String creationDate;
+	long score;
+	long viewCount;
+	String body;
+	long ownerUserId;
+	String ownerDisplayName;
+	long lastEditorUserId;
+	String lastEditorDisplayName;
+	String lastEditDate;
+	String lastActivityDate;
+	String title;
+	String tags;
+	long answerCount;
+	long commentCount;
+	long favoriteCount;
+	String closedDate;
+	String communityOwnedDate;
+	public PostRowData(long id, long postTypeId, long acceptedAnswerId,
+			long parentId, String creationDate, long score, long viewCount,
+			String body, long ownerUserId, String ownerDisplayName,
+			long lastEditorUserId, String lastEditorDisplayName,
+			String lastEditDate, String lastActivityDate, String title,
+			String tags, long answerCount, long commentCount, long favoriteCount,
+			String closedDate, String communityOwnedDate) {
+		this.id = id;
+		this.postTypeId = postTypeId;
+		AcceptedAnswerId = acceptedAnswerId;
+		ParentId = parentId;
+		this.creationDate = creationDate;
+		this.score = score;
+		this.viewCount = viewCount;
+		this.body = body;
+		this.ownerUserId = ownerUserId;
+		this.ownerDisplayName = ownerDisplayName;
+		this.lastEditorUserId = lastEditorUserId;
+		this.lastEditorDisplayName = lastEditorDisplayName;
+		this.lastEditDate = lastEditDate;
+		this.lastActivityDate = lastActivityDate;
+		this.title = title;
+		this.tags = tags;
+		this.answerCount = answerCount;
+		this.commentCount = commentCount;
+		this.favoriteCount = favoriteCount;
+		this.closedDate = closedDate;
+		this.communityOwnedDate = communityOwnedDate;
+	}
+	
+
+}

@@ -1,0 +1,254 @@
+package parser;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+
+import data.CodeElementData;
+
+/**
+ * @author Hoan Nguyen
+ */
+
+public class ASTNodeWrapper {
+	
+	public static void main(String[] argument) throws IOException {
+	}
+	
+	public static List<CodeElementData> parseASTree(ASTNode node) {
+		if(node == null)
+			return null;
+		
+		/** Print results */
+		System.out.println("Pqn \t\t\t Name \t\t\tKind");
+		System.out.println("---------------------------------------------------------------");
+		/** Return extracted code elements */
+		List<CodeElementData> codeElements = new ArrayList<CodeElementData>();
+		
+		node.accept(new ASTVisitor() {
+			/** Simple table to control variable declaration */
+			HashMap<String, String> map = new HashMap<String, String>();
+			
+			/** boolean variable is used to control variable declaration */
+			@SuppressWarnings("unused")
+			boolean varDeclared = false;
+			String varType = "";
+			
+			public boolean visit(VariableDeclarationStatement node) {
+				varDeclared = true;
+				return true;
+			}
+			
+			public boolean visit(SimpleType node) {
+				/** Get info */
+				varType = node.toString();
+				CodeElementData codeElem = new CodeElementData(node.toString(), node.toString(), "type");
+				codeElements.add(codeElem);
+//				System.out.println(node.toString() + "\t\t\t" + node.toString() + "\t\t\ttype");
+				return true;
+			}
+			
+			public boolean visit(VariableDeclarationFragment node) {
+				String varName = node.getName().toString();
+				map.put(varName, varType);
+				varDeclared = false;
+				varType = "";
+				return true;
+			}
+			
+			public boolean visit(QualifiedName node) {
+				CodeElementData codeElem = new CodeElementData(node.getQualifier().toString(), node.getName().toString(), "field");
+				codeElements.add(codeElem);
+				System.out.println(node.getQualifier().toString() + "\t\t\t" + node.getName().toString() + "\t\t\ttype");
+				return true;
+			}
+			
+			public boolean visit(MethodInvocation node) {
+				String expression = "";
+				if(node != null && node.getExpression() != null) {
+					String invokingInst = node.getExpression().toString();
+					if(map.containsKey(invokingInst)) {
+						expression = map.get(invokingInst);
+					}
+					else
+						expression = invokingInst;
+				}
+				CodeElementData codeElem = new CodeElementData(node.toString(), expression, "method");
+				codeElements.add(codeElem);
+				System.out.println(node.getName().toString() + "\t\t\t" + expression + "\t\t\tmethod");
+				return true;
+			}
+			
+			public boolean visit(ClassInstanceCreation node) {
+				CodeElementData codeElem = new CodeElementData(node.toString(), node.getType().toString(), "method");
+				codeElements.add(codeElem);
+				System.out.println(node.getType().toString() + "\t\t\t" + node.getType().toString() + "\t\t\tmethod");
+				return true;
+			}
+		});
+		
+		return codeElements;
+	}
+	
+	public static ASTNode createAST(String code) {
+		if(code == "") {
+    	System.err.println("No code snippet");
+			return null;
+		}
+			ASTParser parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_COMPILATION_UNIT);
+    	ASTNode node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Unit");
+    		return node;
+    	}
+    	
+    	parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+    	node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Body");
+    		return node;
+    	}
+
+    	parser = ASTParser.newParser(AST.JLS8);
+    	parser.setSource(code.toCharArray());
+    	parser.setKind(ASTParser.K_STATEMENTS);
+    	node = parser.createAST(null);
+    	if(isParsed(node)) {
+    		//System.out.println("Statements");
+    		code = "public void MISSING(){\n" + code + "\n}";
+    		parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+        node = parser.createAST(null);
+    		return node;
+    	}
+    	else if (code.trim().endsWith(")")) {
+    		code = "public void MISSING(){\n" + code + ";\n}";
+    		parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_CLASS_BODY_DECLARATIONS);
+        node = parser.createAST(null);
+    		return node;
+    	}
+    	System.err.println("Code snippet existed but fail to create AST");
+    	return null;
+	}
+	
+	/** Get statements in classes, methods, ... */
+	public static String getContent(ASTNode node) {
+		//System.out.println(node.getClass().getSimpleName() + "\t" + node);
+		switch (node.getNodeType()) {
+			case ASTNode.COMPILATION_UNIT:
+				//System.out.println("Unit");
+	    		CompilationUnit cu = (CompilationUnit)node;
+	    		TypeDeclaration type = (TypeDeclaration)(cu.types().get(0));
+	    		if(type.getName().toString().equals("MISSING")) {
+	    			if(type.getMethods() != null && type.getMethods().length > 0)
+	    			{
+		    			MethodDeclaration method = type.getMethods()[0];
+						if(method.getName().toString().equals("MISSING")) {
+							Block block = method.getBody();
+							String content = "";
+							for(int i = 0; i < block.statements().size(); i++)
+								content += block.statements().get(i).toString();
+							return content;
+						}
+						return method.toString();
+	    			}
+	    			else if(type.getFields() != null && type.getFields().length > 0) {
+	    				FieldDeclaration field = type.getFields()[0];
+	    				return field.toString();
+	    			}
+	    		}
+				return cu.toString();
+				
+			case ASTNode.TYPE_DECLARATION:
+				//System.out.println("Class");
+	    		type = (TypeDeclaration)node;
+				if(type.getName().toString().equals("MISSING")) {
+					//return type.bodyDeclarations().get(0).toString();
+					if(type.getMethods() != null && type.getMethods().length > 0) {
+						MethodDeclaration method = type.getMethods()[0];
+						if(method.getName().toString().equals("MISSING")) {
+							Block block = method.getBody();
+							String content = "";
+							for(int i = 0; i < block.statements().size(); i++)
+								content += block.statements().get(i).toString();
+							return content;
+						}
+						return method.toString();
+					}
+    			else if(type.getFields() != null && type.getFields().length > 0) {
+    				FieldDeclaration field = type.getFields()[0];
+    				return field.toString();
+    			}
+				}
+				return type.toString();
+				
+			case ASTNode.BLOCK:
+				//System.out.println("Block");
+	    		Block block = (Block)node;
+				String content = "";
+				for(int i = 0; i < block.statements().size(); i++)
+					content += block.statements().get(i).toString();
+				return content;
+				
+			case ASTNode.METHOD_DECLARATION:
+				//System.out.println("Block");
+				MethodDeclaration method = (MethodDeclaration)node;
+				block = method.getBody();
+				content = "";
+				for(int i = 0; i < block.statements().size(); i++)
+					content += block.statements().get(i).toString();
+				return content;
+				
+			default: return node.toString();
+		}
+	}
+	
+	private static boolean isParsed(ASTNode node) {
+		switch (node.getNodeType()) {
+			case ASTNode.COMPILATION_UNIT:
+				CompilationUnit cu = (CompilationUnit)node;
+				if(cu.types() != null && cu.types().size() > 0)
+					return true;
+				return false;
+				
+			case ASTNode.TYPE_DECLARATION:
+				TypeDeclaration type = (TypeDeclaration)node;
+				if(type.bodyDeclarations() != null && type.bodyDeclarations().size() > 0)
+					return true;
+				return false;
+				
+			case ASTNode.BLOCK:
+				Block block = (Block)node;
+				if(block.statements() != null && block.statements().size() > 0)
+					return true;
+				return false;
+				
+			default: return false;
+		}
+	}
+
+}

@@ -1,0 +1,23 @@
+/**
+ * 
+ */
+package databaseprocess;
+
+import java.util.HashMap;
+
+/**
+ * @author anhnt
+ *
+ */
+public class GlobalInfo {
+
+	HashMap<String, Integer>  termIdxDict = new HashMap<String, Integer>();
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

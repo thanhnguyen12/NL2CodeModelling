@@ -1,0 +1,113 @@
+/**
+ * 
+ */
+package process;
+
+import java.text.MessageFormat;
+import java.util.List;
+
+import org.apache.commons.cli.BasicParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.eclipse.jdt.core.dom.ASTNode;
+
+import utils.Logger;
+import utils.HTMLUtils;
+
+import com.google.code.stackexchange.client.StackExchangeApiClient;
+import com.google.code.stackexchange.client.StackExchangeApiClientFactory;
+import com.google.code.stackexchange.client.constant.TestConstants;
+import com.google.code.stackexchange.client.examples.TagsApiExample;
+import com.google.code.stackexchange.common.PagedList;
+import com.google.code.stackexchange.schema.Question;
+import com.google.code.stackexchange.schema.StackExchangeSite;
+import com.google.code.stackexchange.schema.Tag;
+import com.google.code.stackexchange.schema.Answer;
+
+import org.jsoup.Jsoup;
+
+import parser.ASTNodeWrapper;
+
+/**
+ * @author anhnt_000
+ *
+ */
+public class TagProcessing2 {
+
+	/** The Constant APPLICATION_KEY_OPTION. */
+	private static final String APPLICATION_KEY_OPTION = "key";
+
+	/** The Constant STACK_EXCHANGE_SITE. */
+	private static final String STACK_EXCHANGE_SITE = "site";
+
+	/** The Constant HELP_OPTION. */
+	private static final String HELP_OPTION = "help";
+	 StackExchangeApiClient client;
+	
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		String key = "d*e3BW8LD1uD7ZxzWeY39g(("; 
+		String site = "stackoverflow";
+		
+		process(key, site);
+	}
+
+	
+	public void init(String key, String site){
+		final String keyValue = key;
+		final String siteValue = site;
+
+		final StackExchangeApiClientFactory factory = StackExchangeApiClientFactory
+				.newInstance(keyValue,
+						StackExchangeSite.fromValue(siteValue));
+		client = factory
+				.createStackExchangeApiClient();
+		
+	}
+	
+	public static void process(String key, String site){
+		final String keyValue = key;
+		final String siteValue = site;
+
+		final StackExchangeApiClientFactory factory = StackExchangeApiClientFactory
+				.newInstance(keyValue,
+						StackExchangeSite.fromValue(siteValue));
+		final StackExchangeApiClient client = factory
+				.createStackExchangeApiClient();
+		
+		// with "withbody" filter, we get the whole content of question
+		List<Question> questions = client.getQuestions("withbody", new long[]{10370731l});
+		for (Question question : questions) {
+			printResult(question);
+		}
+		
+		List<Answer> answers = 	client.getAnswersByQuestions(Answer.SortOrder.MOST_VOTED, "withbody", new long[]{10370731l});
+		for(Answer answer : answers) {
+			System.out.println(answer.getAnswerId() + ": full content: \n" + HTMLUtils.getTextFromHTML(answer.getBody())
+				+ "\n Code fragment of answer \n " + answer.getAnswerId() + ":\t" + HTMLUtils.getCodeFromHTML(answer.getBody()));
+			ASTNode node = ASTNodeWrapper.createAST(HTMLUtils.getCodeFromHTML(answer.getBody()).get(0));
+			String codeElemts = ASTNodeWrapper.getContent(node);
+			System.out.println(codeElemts);
+		}
+	}
+	
+	
+	/**
+	 * Prints the result.
+	 * 
+	 * @param question
+	 *            the question
+	 */
+	private static void printResult(Question question) {
+		System.out.println(question.getTitle() + "\n" + Jsoup.parse(question.getBody()).text()+ ":"
+				+ question.getAnswerCount() + question.getOwner().getReputation() + question.getScore());
+	}
+}

@@ -1,0 +1,4 @@
+1435163123651	Rename type 'DatabaseReader'
+1435289415588	Rename type 'CSVReader'
+1435291848891	Rename local variable 'reader'
+1435292100888	Rename method 'readAllLines'

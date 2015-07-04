@@ -1,0 +1,106 @@
+/**
+ * 
+ */
+package database;
+
+import java.io.File;
+
+import com.almworks.sqlite4java.SQLite;
+import com.almworks.sqlite4java.SQLiteConnection;
+import com.almworks.sqlite4java.SQLiteException;
+import com.almworks.sqlite4java.SQLiteStatement;
+
+import config.Config;
+
+/**
+ * @author anhnt
+ *
+ */
+public class SQLiteInterface {
+
+	private SQLiteConnection _db;
+
+
+
+	public SQLiteInterface(String pathToDBLibs,String pathToDatabase) {
+		SQLite.setLibraryPath(pathToDBLibs);
+		_db = new SQLiteConnection(new File(pathToDatabase));
+		try {
+			_db.open(true);
+
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public void dispose(){
+		_db.dispose();
+	}
+
+
+	//	const column_spec posts_columns[] =
+	//		{{"Id",             CT_INT},
+	//		 {"PostTypeId",     CT_INT},
+	//		 {"AcceptedAnswerId", CT_INT},
+	//		 {"ParentId",       CT_INT},
+	//		 {"CreationDate",   CT_DATE},
+	//		 {"Score",          CT_INT},
+	//		 {"ViewCount",      CT_INT},
+	//		 {"Body",           CT_TEXT},
+	//		 {"OwnerUserId",    CT_INT},
+	//		 {"OwnerDisplayName",    CT_TEXT},
+	//		 {"LastEditorUserId", CT_INT},
+	//		 {"LastEditorDisplayName", CT_VCHR64},
+	//		 {"LastEditDate",   CT_DATE},
+	//		 {"LastActivityDate", CT_DATE},
+	//		 {"Title",          CT_TEXT},
+	//		 {"Tags",           CT_TEXT},
+	//		 {"AnswerCount",    CT_INT},
+	//		 {"CommentCount",   CT_INT},
+	//		 {"FavoriteCount",  CT_INT},
+	//		 {"ClosedDate",     CT_DATE},
+	//		 {"CommunityOwnedDate", CT_DATE},
+	//		 {0}};
+	//
+	//const table_spec posts_table = {"posts", posts_columns};
+
+	public PostRowData selectSinglePost(long questionId)  { 
+		
+		try {
+			String query = "SELECT * FROM posts where Id = " + (int)questionId + 
+			SQLiteStatement st = _db.prepare(query);
+			
+			PostRowData postData = new PostRowData
+					(
+							st.columnInt(0), 
+							st.columnInt(1),
+							st.columnInt(2), 
+							st.columnInt(3), 
+							st.columnString(4),
+							st.columnInt(5), 
+							st.columnInt(6),
+							st.columnString(7), 
+							st.columnInt(8), 
+							st.columnString(9), 
+							st.columnInt(10), 
+							st.columnString(11), 
+							st.columnString(12), 
+							st.columnString(13), 
+							st.columnString(14), 
+							st.columnString(15), 
+							st.columnInt(16),
+							st.columnInt(17),
+							st.columnInt(18),
+							st.columnString(19), 
+							st.columnString(20) 
+							);
+
+
+			return postData;
+		} catch (SQLiteException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+}

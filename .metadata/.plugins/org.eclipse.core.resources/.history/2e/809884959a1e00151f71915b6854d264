@@ -1,0 +1,40 @@
+/**
+ * 
+ */
+package align;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+
+import config.Config;
+import utils.FileUtils;
+import edu.berkeley.nlp.wordAlignment.Main;
+
+/**
+ * @author anhnt
+ *
+ */
+public class MainAligner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		MainAligner aligner = new MainAligner();
+		try {
+			FileUtils.deleteDirectoryContent(new File(Config.alignOutputDirPath));
+			FileUtils.deleteRecursive(new File(Config.alignOutputDirPath));
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+//			e.printStackTrace();
+		}
+		aligner.doAlignment(Config.alignDirPath + "example4.conf");
+	}
+
+	public void doAlignment(String confPath){
+		String[] args = new String[]{"++"+confPath};
+		Main.main(args);
+	}
+	
+}

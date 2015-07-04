@@ -1,0 +1,78 @@
+/**
+ * 
+ */
+package align;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import config.Config;
+import utils.FileUtils;
+import edu.berkeley.nlp.wordAlignment.Main;
+
+/**
+ * @author anhnt
+ *
+ */
+public class MainAligner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		MainAligner aligner = new MainAligner();
+		try {
+			FileUtils.deleteDirectoryContent(new File(Config.alignOutputDirPath));
+			FileUtils.deleteRecursive(new File(Config.alignOutputDirPath));
+			Thread.sleep(2000);
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+//			e.printStackTrace();
+		}
+		aligner.setUp(Config.myConfFilePath);
+		aligner.doAlignment(Config.myConfFilePath);
+	}
+	
+	
+	public void setUp(String confPath){
+		try {
+			FileWriter fw = new FileWriter(confPath);
+			String tmp = 
+					"forwardModels	MODEL1 HMM "
+					+ "reverseModels	MODEL1 HMM"
+					+ "mode	JOINT JOINT"
+					+ "iters	2 2"
+					+ "execDir	/remote/rs/tien/anhnt/TextToCode/data/berkeleyaligner/example4/output"
+					+ "create"
+					+ "saveParams	true"
+					+ "numThreads	1"
+					+ "msPerLine	10000"
+					+ "alignTraining"
+					+ "foreignSuffix	f"
+					+ "englishSuffix	e"
+					+ "lowercase"
+					+ "trainSources	/remote/rs/tien/anhnt/TextToCode/data/berkeleyaligner/example4/test /remote/rs/tien/anhnt/TextToCode/data/berkeleyaligner/example4/train"
+					+ "sentences	MAX"
+					+ "testSources	/remote/rs/tien/anhnt/TextToCode/data/berkeleyaligner/example4/test"
+					+ "maxTestSentences	MAX"
+					+ "offsetTestSentences	0"
+					+ "competitiveThresholding";
+			fw.close();
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+
+	public void doAlignment(String confPath){
+		String[] args = new String[]{"++"+confPath};
+		Main.main(args);
+	}
+	
+}

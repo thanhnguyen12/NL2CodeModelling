@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.PrimitiveType"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.ParameterizedType"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.Type"/>
+<fullyQualifiedTypeName name="database.SQLiteInterace"/>
+<fullyQualifiedTypeName name="utils.Logger"/>
+<fullyQualifiedTypeName name="database.UserRowData"/>
+<fullyQualifiedTypeName name="process.TagsProcessingSQL"/>
+<fullyQualifiedTypeName name="database.SQLiteInterface"/>
+<fullyQualifiedTypeName name="edu.berkeley.nlp.wordAlignment.Main"/>
+<fullyQualifiedTypeName name="align.MainAligner"/>
+<fullyQualifiedTypeName name="utils.FileUtils"/>
+<fullyQualifiedTypeName name="java.io.File"/>
+<fullyQualifiedTypeName name="java.util.HashMap"/>
+<fullyQualifiedTypeName name="databaseprocess.GlobalInfo"/>
+<fullyQualifiedTypeName name="java.util.LinkedHashSet"/>
+<fullyQualifiedTypeName name="database.PostRowData"/>
+<fullyQualifiedTypeName name="java.io.FileWriter"/>
+<fullyQualifiedTypeName name="java.util.ArrayList"/>
+<fullyQualifiedTypeName name="java.lang.StringBuffer"/>
+<fullyQualifiedTypeName name="config.Config"/>
+<fullyQualifiedTypeName name="data.AnswerData"/>
+</qualifiedTypeNameHistroy>

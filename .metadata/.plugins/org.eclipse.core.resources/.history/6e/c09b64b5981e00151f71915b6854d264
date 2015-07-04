@@ -1,0 +1,28 @@
+/**
+ * 
+ */
+package align;
+
+import edu.berkeley.nlp.wordAlignment.Main;
+
+/**
+ * @author anhnt
+ *
+ */
+public class MainAligner {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		MainAligner aligner = new MainAligner();
+		aligner.doAlignment("/remote/rs/tien/anhnt/TextToCode/data/berkeleyaligner/example4.conf");
+	}
+
+	public void doAlignment(String confPath){
+		String[] args = new String[]{confPath};
+		Main.main(args);
+	}
+	
+}

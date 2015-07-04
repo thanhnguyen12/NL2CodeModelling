@@ -1,0 +1,142 @@
+/**
+ * 
+ */
+package process;
+
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.cli.BasicParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.jsoup.Jsoup;
+
+import parser.ASTNodeWrapper;
+import utils.HTMLUtils;
+import utils.Logger;
+
+import com.google.code.stackexchange.client.StackExchangeApiClient;
+import com.google.code.stackexchange.client.StackExchangeApiClientFactory;
+import com.google.code.stackexchange.client.constant.TestConstants;
+import com.google.code.stackexchange.client.examples.TagsApiExample;
+import com.google.code.stackexchange.common.PagedList;
+import com.google.code.stackexchange.schema.Answer;
+import com.google.code.stackexchange.schema.Question;
+import com.google.code.stackexchange.schema.StackExchangeSite;
+import com.google.code.stackexchange.schema.Tag;
+import com.google.code.stackexchange.schema.User;
+
+import data.AnswerData;
+import data.CodeElementData;
+import data.PosterData;
+import data.QuestionData;
+import data.ThreadData;
+import database.PostRowData;
+import database.SQLiteInterface;
+import database.UserRowData;
+
+/**
+ * @author anhnt_000
+ *
+ */
+public class TagsProcessingSQL {
+
+	/** The Constant APPLICATION_KEY_OPTION. */
+	private static final String APPLICATION_KEY_OPTION = "key";
+
+	/** The Constant STACK_EXCHANGE_SITE. */
+	private static final String STACK_EXCHANGE_SITE = "site";
+
+	/** The Constant HELP_OPTION. */
+	private static final String HELP_OPTION = "help";
+	 StackExchangeApiClient client;
+	
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+	}
+
+	
+	public void init(String key, String site){
+		final String keyValue = key;
+		final String siteValue = site;
+
+		Logger.log("init site: " + site);
+		Logger.log("StackExchangeSite.fromValue(siteValue):  " + StackExchangeSite.fromValue(siteValue));
+
+		final StackExchangeApiClientFactory factory = StackExchangeApiClientFactory
+				.newInstance(keyValue,
+						StackExchangeSite.fromValue(siteValue));
+		client = factory
+				.createStackExchangeApiClient();
+		
+	}
+	
+	public ThreadData processThread(long questionId, SQLiteInterface sqliteInterface ){
+		// parse question using Stack Exchange API
+		QuestionData questData = getQuestionInfo(questionId, sqliteInterface);
+		
+		// parse answers
+		ArrayList<AnswerData> answerData = getAnswerData(questionId, sqliteInterface);
+	  return (new ThreadData(questData, answerData));
+	}
+	
+	public QuestionData getQuestionInfo(long questionId,  SQLiteInterface sqliteInterface) {		
+		PostRowData postRowData = sqliteInterface.selectSinglePost(questionId); 
+		if(postRowData==null)
+			return null;
+		String title = postRowData.title;
+		/// TODO: not html-parsed yet
+		String content = HTMLUtils.getTextFromHTML(postRowData.body);
+		long score = postRowData.score;
+		
+		UserRowData userData = sqliteInterface.getSingleUser(postRowData.ownerUserId);
+		PosterData poster = new PosterData(postRowData.ownerUserId, postRowData.);
+		
+		System.out.println("----------------------------------------------------------------------------------");
+		System.out.println("Questionid :" + questionId + "\t" + title + "\nContent: " + content);
+		Logger.log("Questionid: " + questionId);
+		
+		return (new QuestionData(question.getQuestionId(), title, content, score, poster));
+	}
+	
+	public ArrayList<AnswerData> getAnswerData(long questionId,  SQLiteInterface sqliteInterface) {
+		/** returned var */
+		ArrayList<AnswerData> processedAnswers = new ArrayList<AnswerData>();
+		List<Answer> answers = 	client.getAnswersByQuestions(Answer.SortOrder.MOST_VOTED, "withbody", questionId);
+		for (Answer answer : answers) {
+			long answerId = answer.getAnswerId();
+			/** String content = HTMLUtils.getTextFromHTML(answer.getBody()); */
+			long score = answer.getScore();
+			PosterData poster = new PosterData(answer.getOwner().getUserId(), answer.getOwner().getReputation());
+			
+			// process some code snippet to get code elements, then put into returned list
+//			System.out.println("----------------------------------------------------------------------------------");
+//			System.out.println("Code elements extracted for answer :" + answerId);
+			
+			List<String> codes = HTMLUtils.getCodeFromHTML(answer.getBody());
+			List<CodeElementData> aggregateCodeElems = new ArrayList<CodeElementData>();
+			for(String code : codes) {
+				ASTNode node = ASTNodeWrapper.createAST(code);
+				List<CodeElementData> codeElems = ASTNodeWrapper.parseASTree(node);
+				if(codeElems != null /*&& !codeElems.isEmpty()*/)
+					aggregateCodeElems.addAll(codeElems);
+			}
+			
+			AnswerData procAns = new AnswerData(answerId, questionId, score, poster);
+			procAns.setCodeElements(aggregateCodeElems);
+			
+			processedAnswers.add(procAns);
+		}
+		
+		return processedAnswers;
+	}
+}

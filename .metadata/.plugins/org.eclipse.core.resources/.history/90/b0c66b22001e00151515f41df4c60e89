@@ -1,0 +1,249 @@
+package database;
+
+import com.almworks.sqlite4java.SQLite;
+import com.almworks.sqlite4java.SQLiteConnection;
+import com.almworks.sqlite4java.SQLiteException;
+import com.almworks.sqlite4java.SQLiteStatement;
+import org.eclipse.jgit.revwalk.RevCommit;
+
+import java.io.File;
+
+public class SQLite4Java { 
+    private SQLiteConnection _db;
+    private String _delimiter = "[,]";
+	private long currRepoId; 
+	private long currCommitId;
+
+    public SQLite4Java(String pathToSQLiteLib,String inputFile) {
+		SQLite.setLibraryPath(pathToSQLiteLib);
+        _db = new SQLiteConnection(new File(inputFile));
+        try {
+			_db.open(true);
+			inititalizeDB();
+			
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+    private void inititalizeDB(){
+    	
+    	SQLiteStatement stInsert;
+		try {
+			stInsert = _db.prepare("CREATE TABLE Repositories ("+
+	    			"`id`	INTEGER NOT NULL,"+
+	    			"`Name`	TEXT,"+
+	    			"`Path`	TEXT UNIQUE,"+
+	    			"`OwnerId`	INTEGER,"+
+	    			"PRIMARY KEY(id)"+
+	    		");");
+			stInsert.step();
+			stInsert = _db.prepare("CREATE TABLE GithubUsers ("+
+		    		"	`Id`	INTEGER NOT NULL,"+
+		    		"	`Username`	TEXT UNIQUE,"+
+		    		"	PRIMARY KEY(Id)"+
+	    		");");
+			stInsert.step();
+			stInsert = _db.prepare("CREATE TABLE GitPersons ("+
+		    		"	`Id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,"+
+		    		"	`Name`	TEXT,"+
+		    		"	`Email`	TEXT,"+
+		    		"	`GithubUsersId`	INTEGER"+
+	    		");");
+			stInsert.step();
+			stInsert = _db.prepare("CREATE TABLE File ("+
+		    		"	`Id`	INTEGER NOT NULL,"+
+		    		"	`Commit_ID`	INTEGER,"+
+		    		"	`AST_Before_Path`	TEXT,"+
+		    		"	`AST_After_Path`	TEXT,"+
+		    		"	`AST_Diff_Path`	INTEGER,"+
+		    		"	`file_name`	TEXT,"+
+		    		"	PRIMARY KEY(Id)"+
+		    		");");
+			stInsert.step();
+			stInsert = _db.prepare("CREATE TABLE Commits ("+
+		    		"	`Id`	INTEGER NOT NULL,"+
+		    		"	`Repo_ID`	INTEGER,"+
+		    		"	`Author_ID`	INTEGER,"+
+		    		"	`Name`	TEXT,"+
+		    		"	`Message`	TEXT,"+
+		    		"	`Time`	TEXT,"+
+		    		"	`Committer_ID`	INTEGER,"+
+		    		"	PRIMARY KEY(Id)"+
+		    		");");
+			stInsert.step();
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+    }
+    
+    
+    public void dispose(){
+    	_db.dispose();
+    }
+
+    public String selectSingle(String query)  { 
+
+		SQLiteStatement st;
+	    try {		
+		    st = _db.prepare(query);
+		      while (st.step()) {
+		        System.out.println(st.columnLong(0)+ "-" +st.columnString(1)+ "-" +st.columnString(2));
+		      }
+		    } catch (SQLiteException e) {
+				e.printStackTrace();
+			}
+    	return "true";
+    }
+    
+    public String insertSingle(String query)  { 
+		SQLiteStatement st;
+	    try {		
+		    st = _db.prepare(query);
+		      while (st.step()) {
+//		        System.out.println(st.columnLong(0)+ "-" +st.columnString(1)+ "-" +st.columnString(2));
+		      }
+		      System.out.println(_db.getLastInsertId());
+		    } catch (SQLiteException e) {
+				e.printStackTrace();
+			}
+    	return "true";
+    }
+
+    private long insertAndGetID(String TableName,String Column,String Value){
+    	SQLiteStatement st;
+    	return 0;
+    }
+    
+	public long insertProject(String userName, String projectName) {
+		SQLiteStatement st;
+		SQLiteStatement st_2;
+		SQLiteStatement stCheck;
+		long lastInsert = 0;
+		try {
+			stCheck = _db.prepare("SELECT id FROM GithubUsers where username LIKE \""+userName+"\"");
+			stCheck.step();
+			if(stCheck.columnNull(0)){
+				 st = _db.prepare("INSERT INTO GithubUsers (USERNAME) VALUES (\""+userName+"\")");
+				 st.step();
+				 lastInsert = _db.getLastInsertId();
+			}
+			else{
+				lastInsert = stCheck.columnLong(0);
+			}
+
+			SQLiteStatement checkRepo;
+			checkRepo = _db.prepare("SELECT id FROM Repositories where Path LIKE \""+ userName + "\\"+projectName +"\"");
+			checkRepo.step();
+			if(checkRepo.columnNull(0)){
+				 st = _db.prepare("INSERT INTO Repositories (Name,Path,OwnerId) VALUES (\""+userName+"\",\""+ userName + "\\"+projectName +"\",\""+lastInsert+"\")");
+				 st.step();
+				 lastInsert = _db.getLastInsertId();
+			}else{
+				lastInsert = checkRepo.columnLong(0);
+			}
+			currRepoId = lastInsert;
+
+		    //System.out.println(lastInsert);
+		    } catch (SQLiteException e) {
+				e.printStackTrace();
+			}		
+		return lastInsert;
+	}
+
+	private long checkOrInsertPerson(String personName,String personEmail){
+		SQLiteStatement checkPerson;
+		SQLiteStatement insertPerson;
+		long lastInsert = 0;
+		
+		try {
+			checkPerson = _db.prepare("SELECT Id FROM GitPersons where Email LIKE \""+ personEmail +"\"");
+
+		checkPerson.step();
+		
+		if(checkPerson.columnNull(0)){
+			insertPerson = _db.prepare("INSERT INTO GitPersons (Name,Email) VALUES (\""+personName+"\",\""+ personEmail +"\")");
+			insertPerson.step();
+			 lastInsert = _db.getLastInsertId();
+		}else{
+			lastInsert = checkPerson.columnLong(0);
+		}
+		
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return lastInsert;
+	}
+	
+	public void addDiffFiles(String astBefore, String astAfter, String astDiff,String fileName){
+		SQLiteStatement insertFileRecord;
+		try {
+		insertFileRecord = _db.prepare("INSERT INTO File (Commit_ID,AST_Before_Path,AST_After_Path,AST_Diff_Path,file_name) VALUES (" +
+				currCommitId
+				+",\""+
+				astBefore
+				+"\",\""+
+				astAfter
+				+"\",\""+
+				astDiff
+				+"\",\""+
+				fileName
+				+"\")");
+
+			insertFileRecord.step();
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	
+	public void addCommit(RevCommit commit) {
+		
+		long committerID = checkOrInsertPerson(commit.getCommitterIdent().getName(),commit.getCommitterIdent().getEmailAddress());
+		long authorID = checkOrInsertPerson(commit.getAuthorIdent().getName(),commit.getAuthorIdent().getEmailAddress());
+		
+		SQLiteStatement stInsertCommit = null;
+		SQLiteStatement stCheckCommit;
+		try {
+			stCheckCommit = _db.prepare("SELECT id from Commits where name LIKE \""+commit.getName()+"\"");
+		
+		stCheckCommit.step();
+		long lastInsert;
+		if(stCheckCommit.columnNull(0)){
+			stInsertCommit = _db.prepare("INSERT INTO Commits (Repo_Id,Author_Id,Committer_ID,Name,Message,Time) VALUES (" +
+					currRepoId
+					+","+
+					authorID
+					+","+
+					committerID
+					+",\""+
+					commit.getName()
+					+"\",\""+
+					commit.getFullMessage().replace("\"", "'")
+					+"\",\""+
+					commit.getCommitTime()
+					+"\")");
+			stInsertCommit.step();
+			 lastInsert = _db.getLastInsertId();
+		}
+		else{
+			lastInsert = stCheckCommit.columnLong(0);
+		}
+		currCommitId = lastInsert;
+		
+		} catch (SQLiteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		
+	}
+    
+
+}

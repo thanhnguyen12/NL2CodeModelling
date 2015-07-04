@@ -1,0 +1,344 @@
+/**
+ * 
+ */
+package databaseprocess;
+
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.TreeMap;
+
+import process.TagsProcessing;
+import process.TagsProcessingSQL;
+import config.Config;
+import data.AnswerData;
+import data.ThreadData;
+import database.PostRowData;
+import database.SQLiteInterface;
+import utils.FileUtils;
+import utils.Logger;
+
+/**
+ * @author anhnt
+ *
+ */
+public class CLTFileProcessing {
+
+	/**
+	 * @param args
+	 */
+	@SuppressWarnings("unchecked")
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		ArrayList<int[]> allLines  = (ArrayList<int[]>) FileUtils.readObjectFile(Config.mappingLineFilePath);
+		GlobalInfo globalInfo =  (GlobalInfo) FileUtils.readObjectFile(Config.globalInfoFilePath);
+
+
+
+
+		globalInfo.doStatistics();
+
+		CLTFileProcessing cltProcessing = new CLTFileProcessing();
+		cltProcessing.processCLTTable(allLines, globalInfo);
+	}
+
+	public void processCLTTable(ArrayList<int[]> allLines, GlobalInfo globalInfo){
+		LinkedHashSet<Integer> allThreadIdxs = new LinkedHashSet<Integer>();
+		LinkedHashSet<Integer> allPostIdxs = new LinkedHashSet<Integer>();
+		LinkedHashSet<Integer> allPQNIdxs = new LinkedHashSet<Integer>();
+		LinkedHashSet<Integer> allNameIdxs = new LinkedHashSet<Integer>();
+		LinkedHashSet<Integer> allKindIdxs = new LinkedHashSet<Integer>();
+
+		HashMap<Long, Integer> combinedAPIIdxCountMap = new HashMap<Long, Integer>(); 
+		HashMap<Long, HashSet<Integer>> combinedAPIIdxPostCountMap = new HashMap<Long, HashSet<Integer>>(); 
+		HashMap<Long, HashSet<Integer>> combinedAPIIdxThreadCountMap = new HashMap<Long, HashSet<Integer>>(); 
+
+		HashMap<Integer, HashSet<Integer>> threadIdxPostIdxsMap = new HashMap<Integer, HashSet<Integer>>();
+
+		HashMap<Integer, LinkedHashSet<Long>> threadIdxCombinedAPIIdxsMap = new HashMap<Integer, LinkedHashSet<Long>>();
+		HashMap<Integer, LinkedHashSet<Long>> postIdxCombinedAPIIdxsMap = new HashMap<Integer, LinkedHashSet<Long>>();
+
+
+		for (int[] intSplit:allLines){
+			int threadIdx = intSplit[0];
+			allThreadIdxs.add(threadIdx);
+			int postIdx = intSplit[1];
+			allPostIdxs.add(postIdx);
+			int pqnIdx = intSplit[2];
+			allPQNIdxs.add(pqnIdx);
+			int nameIdx = intSplit[3];
+			allNameIdxs.add(nameIdx);
+			allKindIdxs.add(intSplit[4]);
+			long combinedAPIIdx = combineAPIIdx(pqnIdx, nameIdx);
+
+			if(threadIdxCombinedAPIIdxsMap.containsKey(threadIdx)){
+				threadIdxCombinedAPIIdxsMap.get(threadIdx).add(combinedAPIIdx);
+			}
+			else {
+				LinkedHashSet<Long> combinedAPIIdxs = new LinkedHashSet<>();
+				combinedAPIIdxs.add(combinedAPIIdx);
+				threadIdxCombinedAPIIdxsMap.put(threadIdx, combinedAPIIdxs);
+			}
+
+			if(postIdxCombinedAPIIdxsMap.containsKey(postIdx)){
+				postIdxCombinedAPIIdxsMap.get(postIdx).add(combinedAPIIdx);
+			}
+			else {
+				LinkedHashSet<Long> combinedAPIIdxs = new LinkedHashSet<>();
+				combinedAPIIdxs.add(combinedAPIIdx);
+				postIdxCombinedAPIIdxsMap.put(postIdx, combinedAPIIdxs);
+			}
+
+			if(threadIdxPostIdxsMap.containsKey(threadIdx)){
+				threadIdxPostIdxsMap.get(threadIdx).add(postIdx);
+			}
+			else {
+				HashSet<Integer> postIdxs = new HashSet<>();
+				postIdxs.add(postIdx);
+				threadIdxPostIdxsMap.put(threadIdx, postIdxs);
+			}
+
+
+			if(!combinedAPIIdxCountMap.containsKey(combinedAPIIdx)){
+				combinedAPIIdxCountMap.put(combinedAPIIdx, 1);
+			}
+			else {
+				int curcount = combinedAPIIdxCountMap.get(combinedAPIIdx);
+				combinedAPIIdxCountMap.put(combinedAPIIdx, curcount +1);
+			}
+			if(!combinedAPIIdxPostCountMap.containsKey(combinedAPIIdx)){
+				HashSet<Integer> tmp = new HashSet<Integer>();
+				tmp.add(postIdx);
+				combinedAPIIdxPostCountMap.put(combinedAPIIdx, tmp );
+			}
+			else {
+				combinedAPIIdxPostCountMap.get(combinedAPIIdx).add(postIdx);
+			}
+
+			if(!combinedAPIIdxThreadCountMap.containsKey(combinedAPIIdx)){
+				HashSet<Integer> tmp = new HashSet<Integer>();
+				tmp.add(threadIdx);
+				combinedAPIIdxThreadCountMap.put(combinedAPIIdx, tmp );
+			}
+			else {
+				combinedAPIIdxThreadCountMap.get(combinedAPIIdx).add(threadIdx);
+			}
+
+		}
+
+		Logger.log("allThreadIdxs size: " + allThreadIdxs.size());
+		Logger.log("allPostIdxs size: " + allPostIdxs.size());
+		Logger.log("allPQNIdxs size: " + allPQNIdxs.size());
+		Logger.log("allNameIdxs size: " + allNameIdxs.size());
+		Logger.log("allKindIdxs size: " + allKindIdxs.size());
+		System.out.print("allKinds: "); 
+		displayAllKinds(allKindIdxs, globalInfo);
+
+
+		TreeMap<Integer, ArrayList<Long>> threadCountRankMap = getRankedMap(combinedAPIIdxThreadCountMap);
+
+		ArrayList<Long> combinedIdxRankList = new ArrayList<Long>();
+
+		for (Integer threadCount:threadCountRankMap.descendingKeySet()){
+			combinedIdxRankList.addAll(threadCountRankMap.get(threadCount));
+		}
+
+		Logger.log("combinedIdxRankList size: "+ combinedIdxRankList.size());
+
+		//		for (int i=0; i<Config.topCombinedAPI; i++){
+		//			Long  combinedIdx= combinedIdxRankList.get(i);
+
+		LinkedHashSet<Integer> interestedThreadIdxs = new LinkedHashSet<Integer>();
+		int totalThreads = 0;
+
+		int count = 0;
+		int countd = 0;
+		for (Long  combinedIdx:combinedIdxRankList){
+			countd++;
+			if(countd<=Config.topDiscardCombinedAPI)
+				continue;
+			int pqnIdx = (int) (combinedIdx/4294967296l);
+			int nameIdx = (int) (combinedIdx - pqnIdx*4294967296l);
+
+			String pqn = globalInfo.idxTermDict.get(pqnIdx) ;
+			String name = globalInfo.idxTermDict.get(nameIdx);
+			if(isFeasibleElement(pqn, name, globalInfo)){
+				count++;
+				Logger.log(combinedIdx + ":" + pqn + ":" + name  + ":" + combinedAPIIdxThreadCountMap.get(combinedIdx).size());
+				interestedThreadIdxs.addAll(combinedAPIIdxThreadCountMap.get(combinedIdx));
+				totalThreads += combinedAPIIdxThreadCountMap.get(combinedIdx).size();
+				if(count==1000)
+					break;
+
+			}
+
+		}
+
+		Logger.log("number of unique interested threads: "+ interestedThreadIdxs.size());
+		Logger.log("totalThreads: "+ totalThreads);
+
+		processWithThreads(threadIdxPostIdxsMap, interestedThreadIdxs, threadIdxCombinedAPIIdxsMap, postIdxCombinedAPIIdxsMap, globalInfo);
+
+	}
+
+	public void processWithThreads(HashMap<Integer, HashSet<Integer>> threadIdxPostIdxsMap, 
+			LinkedHashSet<Integer> interestedThreadIdxs,
+			HashMap<Integer, LinkedHashSet<Long>> threadIdxCombinedAPIIdxsMap,
+			HashMap<Integer, LinkedHashSet<Long>> postIdxCombinedAPIIdxsMap,
+			GlobalInfo globalInfo){
+		//		String key = "d*e3BW8LD1uD7ZxzWeY39g(("; 
+		//		String site = "stackoverflow";
+
+		TagsProcessingSQL tagProc = new TagsProcessingSQL(); 
+		//		tagProc.init(key, site);
+		SQLiteInterface sqLiteInterface = new SQLiteInterface();
+
+		//		HashMap<Long, ThreadData> threadIDDataMap = new HashMap<Long, ThreadData>();
+
+		int threadCount = 0; 
+		for(Integer threadIdx:interestedThreadIdxs){
+			String realThreadIdxStr = globalInfo.idxTermDict.get(threadIdx);
+			long realThreadIdx = Long.parseLong(realThreadIdxStr); 
+			ThreadData thread = tagProc.processThread(realThreadIdx, sqLiteInterface);
+			threadCount++;
+			if(threadCount%1000==0){
+				System.out.print(threadCount + "  ");
+				if(threadCount%100000==0){
+					System.out.println();
+				}
+			}
+			HashSet<Integer> postIdxs = threadIdxPostIdxsMap.get(threadIdx);
+
+			ArrayList<String> postContents = new ArrayList<String>();
+			ArrayList<String> namesSets = new ArrayList<String>();
+
+
+			ArrayList<AnswerData> answers = thread.answers;
+			for (Integer postIdx:postIdxs){
+				long realPostIdx = Long.parseLong(globalInfo.idxTermDict.get(postIdx));
+				LinkedHashSet<Long> combinedAPIIdxs = postIdxCombinedAPIIdxsMap.get(postIdx);
+				LinkedHashSet<String> names = getNamesFromCombinedIdxs(combinedAPIIdxs, globalInfo);
+				//				 PostRowData postData = sqLiteInterface.selectSinglePost(realPostIdx);
+				for(AnswerData answer:answers)
+					if(answer.getAnswerId()==realPostIdx&&answer.getContent()!=null)
+					{
+						String postContent = processPostContent(answer.getContent(),names);
+						postContents.add(postContent);
+						StringBuffer sb = new StringBuffer();
+						for(String name:names){
+							sb.append(name + " ");
+						}
+						namesSets.add(sb.toString());
+					}
+			}
+			writePairs(realThreadIdx, postContents, namesSets);
+
+		}
+
+		//		FileUtils.writeObjectFile(threadIDDataMap, Config.threadInfoPath);
+		sqLiteInterface.dispose();
+
+	}
+
+	public String processPostContent(String postContent,  LinkedHashSet<String> names){
+		String tmp = postContent.trim().replaceAll("\\s[\\s]", " ");
+		for(String name:names){
+			tmp = tmp.replace(name, " ");
+		}
+		return tmp;
+	}
+
+
+	public void writePairs(long realThreadIdx, ArrayList<String> postContents , ArrayList<String> namesSets ){
+		try{
+			FileWriter fwNLP = new FileWriter(Config.alignTrainDirPath + realThreadIdx + "." + Config.nlpPostfix);
+			for(String postContent:postContents){
+				fwNLP.append(postContent + System.lineSeparator());
+			}
+			fwNLP.close();
+
+			FileWriter fwJava = new FileWriter(Config.alignTrainDirPath + realThreadIdx + "." + Config.javaPostfix);
+			for(String namesSet:namesSets){
+				fwJava.append(namesSet + System.lineSeparator());
+			}
+			fwJava.close();
+
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+
+
+	public LinkedHashSet<String> getNamesFromCombinedIdxs(LinkedHashSet<Long> combinedIdxs, GlobalInfo globalInfo){
+		LinkedHashSet<String> names = new LinkedHashSet<String>();
+		for (long combinedIdx:combinedIdxs){
+			int pqnIdx = (int) (combinedIdx/4294967296l);
+			int nameIdx = (int) (combinedIdx - (long)pqnIdx*4294967296l);
+			String pqn = globalInfo.idxTermDict.get(pqnIdx).trim() ;
+			String name = globalInfo.idxTermDict.get(nameIdx).trim();
+
+			names.add(pqn);
+			names.add(name);
+			names.add(pqn+"." +name);
+		}
+		return names;
+	}
+
+
+
+	public boolean isFeasibleElement(String pqn, String name, GlobalInfo globalInfo){
+		if(pqn.trim().equals("!undef!")){
+			if(globalInfo.nameSet.contains(name))
+				return true;
+			else
+				return false;
+		}
+		else {
+			if(!globalInfo.pqnNameMap.containsKey(pqn.trim())){
+				return false;
+			}
+			else {
+				if(pqn.equals(name))
+					return true;
+				else if (globalInfo.pqnNameMap.get(pqn).contains(name))
+					return true;
+				else
+					return false;
+			}
+		}
+	}
+
+	public TreeMap<Integer, ArrayList<Long>> getRankedMap(HashMap<Long, HashSet<Integer>> combinedAPIIdxCountMap){
+		TreeMap<Integer, ArrayList<Long>> rankedMap = new TreeMap<Integer, ArrayList<Long>>();
+		for (Long combinedIdx:combinedAPIIdxCountMap.keySet()){
+			int count = combinedAPIIdxCountMap.get(combinedIdx).size();
+			if(rankedMap.containsKey(count)){
+				rankedMap.get(count).add(combinedIdx);
+			}
+			else {
+				ArrayList<Long> list = new ArrayList<>();
+				list.add(combinedIdx);
+				rankedMap.put(count, list);
+			}
+		}
+		return rankedMap;
+	}
+
+	public long combineAPIIdx(int pqnIdx,int nameIdx ){
+		return 4294967296l*(long)pqnIdx + (long)nameIdx;
+	}
+
+	public void displayAllKinds(LinkedHashSet<Integer> allKindIdxs, GlobalInfo globalInfo){
+		for(Integer idx:allKindIdxs){
+			System.out.print(globalInfo.idxTermDict.get(idx) + ", ");
+
+		}
+		System.out.println();
+	}
+
+}
